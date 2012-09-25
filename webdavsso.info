@@ -1,0 +1,4 @@
+name = WebDAV SSO Bypasser
+description = Stores hashed passwords so that WebDAV can validate realms
+core = 6.x
+package = "WebDAV"

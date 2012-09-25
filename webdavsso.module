@@ -1,0 +1,178 @@
+<?php
+
+/**
+* Display help and module information
+* @param path which path of the site we're displaying help
+* @param arg array that holds the current path as would be returned from arg() function
+* @return help text for the path
+*/
+function webdavsso_help($path, $arg) {
+  $output = '';  //declare your output variable
+  switch ($path) {
+    case "admin/help#webdavsso":
+      $output = '<p>'.  t("Stores realm hashed passwords for WebDAV access") .'</p>';
+      break;
+  }
+  return $output;
+} // function webdavsso_help
+
+/**
+* Custom permissions
+*/
+function webdavsso_perm()
+{
+    return array('Admin realms');
+}
+
+/**
+ * Custom menu for the module
+ */
+function webdavsso_menu(){
+    $items = array();
+	$items['admin/webdavsso/realms'] = array(
+		'title' => t('WebDAV SSO settings'),
+		'description' => t('The settings for WebDAV SSO module, intended to allow the SSS EDM to bypass SSO an pull hashed WebDAV credentials.'),
+        'page callback' => 'webdavsso_realms',
+        'type' => MENU_NORMAL_ITEM,
+        'access arguments' => array('Admin realms'),
+		'access callback' => 'user_access'
+		);
+	$items['admin/webdavsso_form'] = array(
+		'page callback' => 'drupal_get_form', // assuming that you want to use a form
+		'page arguments' => array('webdavsso_form'),
+		'access arguments' => array('Admin realms'),
+		'type' => MENU_CALLBACK,
+	);
+
+	return $items;
+}
+
+/**
+ * List the existing realms
+ */
+function webdavsso_realms() {
+ $db_result = db_query( "select * from {webdavsso_realm} ");
+    $header = array("Realm","Authentication Server");
+    // create array and add one element called data
+    $rows['data'] = array();
+    while ($row = db_fetch_object($db_result)) {
+        $rows[] = array($row->name, $row->server);
+    }
+    if (count($rows) == 1)
+        $rows[] = array("No Realms Entered Yet");
+
+    $link_to_add_form = l('Add More Realms','admin/webdavsso_form');
+
+    return theme_table($header, $rows).'<br/>'.$link_to_add_form;
+}
+
+/**
+* The Realm entry form
+*/
+function webdavsso_form($form_state) {
+    $form = array();
+    $form['#redirect'] = 'admin/webdavsso/realms';
+
+    $form['name']=array(
+        '#type'=>'textfield',
+        '#required'=>true,
+        '#default_value'=>' ',
+        '#title'=>t('WebDAV realm:'),
+        '#size'=>20,
+        '#maxlength'=>64,
+        '#weight'=>1);
+
+    $form['server']=array(
+        '#type'=>'textfield',
+        '#required'=>true,
+        '#default_value'=>'127.0.0.1',
+        '#title'=>t('Authenticating server:'),
+        '#size'=>50,
+        '#maxlength'=>64,
+        '#weight'=>2);
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value'=>t('Save'),
+        '#weight'=>99,
+            //'webdavsso_form_save';
+    );
+    return $form;
+}
+
+/**
+ * Custom realm storing
+ */
+function webdavsso_form_submit($form, &$form_state){
+    drupal_set_message($form_state['values']['name'].' '.t('submission complete'));
+    db_query("INSERT INTO {webdavsso_realm} (name,server) VALUES ('%s','%s')", trim($form_state['values']['name']),trim($form_state['values']['server']));
+}
+
+/**
+ * form validation
+ */
+function webdavsso_form_validate($form_id,&$form_state){
+    $name = trim($form_state['values']['name']);
+    if (!$name){
+        form_set_error('name',t('You must submit a value'));
+
+    }
+}
+
+
+/**
+ * Implements hook_user.
+ */
+function webdavsso_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+    case 'login':
+      // For users logging in that don't already have a realmed hash,
+      // ensure we generate a new hash for them.
+      if (!empty($edit['pass']) && empty($account->password)) {
+        webdavsso_user_rehash_password($account, trim($edit['pass']));
+      }
+      break;
+
+    case 'insert':
+    case 'after_update':
+        if (isset($edit['password'])) {
+            webdavsso_user_rehash_password($account, trim($edit['password']));
+        }
+        $edit['password'] = NULL;
+      break;
+    case 'delete':
+      db_query("DELETE FROM {webdavsso} WHERE uid = %d", $account->uid);
+      break;
+  }
+}
+
+
+/**
+ * Updates a user's password hash.
+ *
+ * @param $account
+ *   A user account object.
+ * @param $password
+ *   The user's current password.
+ */
+
+function webdavsso_user_rehash_password($account, $password) {
+    //get all the realms
+    $sql = 'SELECT id, name FROM {webdavsso_realm}';
+    $results = db_query($sql); // Run the query
+    echo '<pre>';
+    var_dump($account);
+    while ($fields = db_fetch_array($results)) {     //loop and update them
+        $rid = $fields['id'];
+        $realm = $fields['name'];
+        $name = $account->name;
+
+        //calculate new WebDAV hash
+        $new_hash = md5(strtolower($name) . ':' . $realm . ':' . $password);
+
+        db_query("UPDATE {webdavsso} SET pass = '%s' WHERE uid = %d AND realmid = %d", $new_hash, $account->uid, $rid);
+        if (!db_affected_rows()) {
+            db_query("INSERT INTO {webdavsso} (uid, realmid, pass) VALUES (%d, %d, '%s')", $account->uid, $rid, $new_hash);
+        }
+    }
+}

@@ -1,0 +1,103 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function webdavsso_schema() {
+  $schema['webdavsso_realm'] = array(
+    'description' => 'table to hold valid WebDAV realms',
+    'fields'=>array(
+        'id'=> array(
+            'type' => 'serial',
+            'unsigned' => TRUE,
+            'not null' => TRUE,
+            'description' => 'Unique WebDAV realm ID.',
+          ),
+        'name' => array(
+            'type' => 'varchar',
+            'length' => 64,
+            'not null' => TRUE,
+            'default' => '',
+            'description' => "WebDAV Realm name",
+          ),
+        'server'=> array(
+              'type' => 'varchar',
+              'length' => 64,
+              'not null' => TRUE,
+              'default' => '',
+              'description' => "WebDAV Server that is contacting us",
+            ),
+    ) ,
+    'primary key' => array('id'),
+    'indexes' => array(
+        'realm_indx' => array('name'),
+     ),
+  );
+    //table to hold our hashes
+  $schema['webdavsso'] = array(
+    'description' => 'table to hold hashed WebDAV credentials',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key',
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Unique user ID.',
+        'default' => 0,
+      ),
+      'realmid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => "WebDAV Realm",
+        'default' => 0,
+      ),
+      'pass' => array(
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => "User's password (hashed).",
+      ),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'pass' => array('pass'),
+      'wdsrealm' => array('realmid'),
+    ),
+    'foreign keys' => array(
+      'users' => array(
+        'table' => 'users',
+        'columns' => array('uid' => 'uid'),
+      ),
+      'realms' => array(
+        'table' => 'webdavsso_realm',
+        'columns' => array('realmid' => 'id'),
+      ),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function webdavsso_install() {
+  drupal_install_schema('webdavsso_realm');
+  drupal_install_schema('webdavsso');
+  // Set the module weight so it can override other modules.
+  db_query("UPDATE {system} SET weight = 99 WHERE name = 'webdavsso'");
+}
+/**
+ * Implements hook_uninstall().
+ */
+function webdavsso_uninstall() {
+  drupal_uninstall_schema('webdavsso');
+  drupal_uninstall_schema('webdavsso_realm');
+ }
