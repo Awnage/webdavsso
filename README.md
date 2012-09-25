@@ -1,7 +1,8 @@
 # WebDAVSSO
 
 by [Gregory Wilson](http://drakos7.net) and [Rosina Bignall](http://rosinabignall.com)
-Sponsored by [Social & Scientific Systems, Inc.][http://www.s-3.com]
+
+Sponsored by [Social & Scientific Systems, Inc.](http://www.s-3.com)
 
 ## About
 
