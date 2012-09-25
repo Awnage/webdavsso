@@ -1,6 +1,6 @@
 # WebDAVSSO
 
-by [Gregory Wilson][http://drakos7.net] and [Rosina Bignall][http://rosinabignall.com]
+by [Gregory Wilson](http://drakos7.net) and [Rosina Bignall](http://rosinabignall.com)
 Sponsored by [Social & Scientific Systems, Inc.][http://www.s-3.com]
 
 ## About
@@ -9,7 +9,7 @@ WebDAVSSO is a Drupal 6 module built to faciliate Single Sign On (SSO) for WebDA
 
 As users log in, the system will store hashed WebDAV compatible passwords.
 
-This module is *not* designed to enable WebDAV access to Drupal nodes or content. For something like that you will want to check out other projects like [WebDAV for Drupal][https://drupal.org/project/webdav].
+This module is *not* designed to enable WebDAV access to Drupal nodes or content. For something like that you will want to check out other projects like [WebDAV for Drupal](https://drupal.org/project/webdav).
 
 
 ## Installation
