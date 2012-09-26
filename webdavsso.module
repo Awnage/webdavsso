@@ -238,7 +238,7 @@ function webdavsso_auth_callback(){
         header('HTTP/1.1 204 No Content');
     }
     elseif (count($rows)>1){    //should not have multiple entries...
-        header("418 I'm a teapot");
+        header("HTTP/1.1 418 I'm a teapot");
         echo "-1";
     }
     else {
