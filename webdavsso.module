@@ -43,7 +43,15 @@ function webdavsso_menu(){
 		'access arguments' => array('Admin realms'),
 		'type' => MENU_CALLBACK,
 	);
-
+        
+        $items['webdavsso/q'] = array(
+            'title'=> 'WebDAV SSO Authentication Query',
+            'type'=> MENU_CALLBACK,  //execute a function, don't show in menu
+            'page callback'=> 'webdavsso_auth_callback',
+            'access arguments' => array('access content'),
+            // 'delivery callback' => 'ajax_deliver' //sigh, drupal 7
+        );
+        
 	return $items;
 }
 
@@ -58,8 +66,9 @@ function webdavsso_realms() {
     while ($row = db_fetch_object($db_result)) {
         $rows[] = array($row->name, $row->server);
     }
-    if (count($rows) == 1)
+    if (count($rows) == 0){
         $rows[] = array("No Realms Entered Yet");
+    }
 
     $link_to_add_form = l('Add More Realms','admin/webdavsso_form');
 
@@ -172,7 +181,70 @@ function webdavsso_user_rehash_password($account, $password) {
 
         db_query("UPDATE {webdavsso} SET pass = '%s' WHERE uid = %d AND realmid = %d", $new_hash, $account->uid, $rid);
         if (!db_affected_rows()) {
-            db_query("INSERT INTO {webdavsso} (uid, realmid, pass) VALUES (%d, %d, '%s')", $account->uid, $rid, $new_hash);
+            $data = array(
+                'uid'=>$account->uid,
+                'realmid'=>$rid,
+                'pass'=>$new_hash);
+            drupal_write_record('webdavsso',$data);
         }
     }
+}
+
+
+/**
+ * Pull in params and see if they match a user!
+ */
+function webdavsso_auth_callback(){
+    //where they are connecting from
+    $ip = $_SERVER['REMOTE_ADDR'];
+    
+    //require HTTPS when not from local
+    if ($ip!='127.0.0.1' && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS']!='')){
+        header('HTTP/1.1 403 Forbidden');
+        echo "HTTPS connection required";
+        exit();
+    }
+    
+    if (!isset($_POST)){
+        header('HTTP/1.1 403 Forbidden');
+        echo "Not that either";
+        exit();
+    }
+
+    //only expecting 2 params: u & r
+    if (count($_POST)!=2 || (!isset($_POST['u']) || !isset($_POST['r']))){
+        header('HTTP/1.1 403 Forbidden');
+        echo "Not even close";
+        exit();
+    }
+    
+    $user = strtolower($_POST['u']);
+    $realm =  $_POST['r'];
+    
+    $db_result = db_query( "select w.pass from {webdavsso} w
+     join {webdavsso_realm} r on r.id=w.realmid
+     join {users} u on u.uid=w.uid
+     where u.name = '%s' and r.name= '%s' and u.status=1 and u.login>0 and r.server= '%s'"
+            ,$user,$realm,$ip);
+
+    $rows = array();
+    $no_results = true;
+    while ($row = db_fetch_array($db_result)) {
+        $no_results = false;
+        $rows[] = $row['pass'];
+    }
+    
+    if ($no_results===true){    //no match
+        header('HTTP/1.1 204 No Content');
+    }
+    elseif (count($rows)>1){    //should not have multiple entries...
+        header("418 I'm a teapot");
+        echo "-1";
+    }
+    else {
+        header('HTTP/1.1 200 OK');
+        echo ($rows[0]);
+    }
+
+    exit;  //don't theme it at all
 }
