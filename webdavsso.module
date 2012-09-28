@@ -169,8 +169,7 @@ function webdavsso_user_rehash_password($account, $password) {
     //get all the realms
     $sql = 'SELECT id, name FROM {webdavsso_realm}';
     $results = db_query($sql); // Run the query
-    echo '<pre>';
-    var_dump($account);
+
     while ($fields = db_fetch_array($results)) {     //loop and update them
         $rid = $fields['id'];
         $realm = $fields['name'];
@@ -199,7 +198,7 @@ function webdavsso_auth_callback(){
     $ip = $_SERVER['REMOTE_ADDR'];
     
     //require HTTPS when not from local
-    if ($ip!='127.0.0.1' && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS']!='')){
+    if ($ip!='127.0.0.1' && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS']=='')){
         header('HTTP/1.1 403 Forbidden');
         echo "HTTPS connection required";
         exit();
